@@ -6,6 +6,13 @@ Born from 6 months of real-world use managing a complex TypeScript microservices
 
 > **This is NOT a working application** - it's a reference library. Copy what you need into your own projects.
 
+**New to Claude Code infrastructure? Three terms cover 90% of this README:**
+- **Skill** - a markdown guide (patterns, conventions, examples) that Claude loads when relevant
+- **Hook** - a script Claude Code runs automatically at key moments (every prompt, before/after edits)
+- **skill-rules.json** - the config that tells hooks which prompts/files should trigger which skills
+
+Full explanations in [Key Concepts](#key-concepts).
+
 ---
 
 ## What's Inside
@@ -51,6 +58,10 @@ The wizard will:
 - Ask: Classic (regex-only) or AI-Enhanced mode?
 - If AI: which provider? Validates API key availability
 - Install hook dependencies and make scripts executable
+- **Verify its own work** - 8 health checks before it declares success
+
+> Scripting it, or letting Claude Code run it? Add `--yes`:
+> `npx tsx setup.ts ~/my-project --yes` (see `--help` for all flags)
 
 ### Option B: Manual (3 Commands)
 
@@ -65,19 +76,57 @@ cp -r claude-code-infrastructure-showcase/.claude ~/my-project/.claude
 cd ~/my-project/.claude/hooks && npm install && chmod +x *.sh
 ```
 
-### Enable AI-Powered Classification (Optional)
+### Option C: Let Claude Code Do It (Easiest)
 
-The default mode uses regex/keyword matching (free, works offline). To enable AI:
+Don't want to touch the terminal? Open Claude Code in your project and paste this:
+
+```text
+Clone https://github.com/diet103/claude-code-infrastructure-showcase to a temp
+directory and read its CLAUDE_INTEGRATION_GUIDE.md. Then install the
+infrastructure into this project by running the setup wizard non-interactively
+(npx tsx setup.ts <this project's absolute path> --yes). When it finishes, show
+me the verification results and fix anything that failed.
+```
+
+Claude clones the repo, runs the wizard (which verifies its own work), and reports back.
+
+### Verify It Works (30 Seconds)
+
+Any time, from your project root:
 
 ```bash
-# Get a free Gemini API key: https://aistudio.google.com/apikey
-# Add to your shell profile (~/.bashrc or ~/.zshrc):
-echo 'export GEMINI_API_KEY=your-key-here' >> ~/.bashrc
-source ~/.bashrc
+bash .claude/scripts/verify-setup.sh
+```
 
-# Enable AI mode - edit .claude/skills/skill-rules.json and change:
+Eight checks - Node version, hook registration, executable bits, dependencies, config validity, even firing a test prompt through the real activation hook - each with an exact fix command if it fails. Or ask Claude to run `/verify-setup` and it fixes failures itself.
+
+### Enable AI-Powered Classification (Optional)
+
+**No API key needed by default.** The standard mode uses regex/keyword matching - free, offline, zero API calls. AI classification is an optional upgrade that matches your *intent* instead of your keywords.
+
+To enable it (Gemini's free tier easily covers this use case):
+
+```bash
+# 1. Get a free Gemini API key: https://aistudio.google.com/apikey
+
+# 2. Put it in the hooks .env file:
+cp .claude/hooks/.env.example .claude/hooks/.env
+# then open .claude/hooks/.env and uncomment: GEMINI_API_KEY=your-key-here
+# (add .env to your project's .gitignore so you never commit it)
+
+# 3. Enable AI mode - edit .claude/skills/skill-rules.json and change:
 #   "skill_activation_mode": "disabled"  →  "skill_activation_mode": "fallback"
 ```
+
+Prefer environment variables? `export GEMINI_API_KEY=your-key` in `~/.bashrc` works too - the hooks read both. (`fallback` mode always degrades gracefully: no key, dead network, slow provider - you get regex matching, never a broken prompt.)
+
+### Upgrading an Existing Install
+
+Re-running the wizard on a project that already has `.claude/` deliberately copies **no files** - it only re-chmods hooks, updates skill-rules.json settings, and reinstalls dependencies. It will never clobber your customized `skill-rules.json` or skills.
+
+To pick up new files from a newer version of this repo:
+- Copy specific pieces from a fresh clone (e.g. `cp -r showcase/.claude/scripts ~/my-project/.claude/`), or
+- If your `.claude/` is committed to git: delete it, re-run the wizard, then `git diff` to port your customizations back.
 
 ### Editor Setup (Optional)
 
@@ -235,9 +284,12 @@ skill-name/
 │   ├── refactor-planner.md
 │   ├── frontend-error-fixer.md
 │   └── ... 5 more
-└── commands/               # 3 slash commands
-    ├── dev-docs.md
-    └── ...
+├── commands/               # 4 slash commands
+│   ├── dev-docs.md
+│   ├── verify-setup.md
+│   └── ...
+└── scripts/
+    └── verify-setup.sh     # One-command health check
 
 dev/
 └── active/                 # Dev docs pattern examples
@@ -275,6 +327,8 @@ dev/
 | stop-build-check-enhanced | Stop | ⚠️ Optional | ⚠️ Moderate |
 | session-doc-updater | Stop | ⚠️ Optional (installed by default) | ✅ None - no-ops until session indexing is configured ([CONFIG.md](.claude/hooks/CONFIG.md)) |
 
+**Hook types:** UserPromptSubmit fires on every prompt you send; PreToolUse fires before each Edit/Write; PostToolUse fires after; Stop fires when Claude finishes responding.
+
 **New in v2.0:**
 - **skill-verification-guard** - PreToolUse hook that analyzes code being written and enforces mandatory skill activation (two-try blocking model)
 - **skill-activation-tracker** - Clears skills from mandatory_pending after they're activated via the Skill tool
@@ -300,12 +354,13 @@ dev/
 
 **👉 [How agents work →](.claude/agents/README.md)**
 
-### 💬 Slash Commands (3)
+### 💬 Slash Commands (4)
 
 | Command | Purpose |
 |---------|---------|
 | /dev-docs | Create structured dev documentation |
 | /dev-docs-update | Update docs before context reset |
+| /verify-setup | Run the infrastructure health check and fix failures |
 | /route-research-for-testing | Research route patterns for testing |
 
 ---
@@ -328,7 +383,7 @@ dev/
 
 **Solution:** Modular structure
 - Main SKILL.md <500 lines (overview + navigation)
-- Resource files aim for <500 lines each (a few deep-dives run longer - split them as they grow)
+- Resource files aim for <500 lines each (full disclosure: a few deep-dives currently run 500-871 lines - kept whole for coherence, splitting them is on the list)
 - Claude loads incrementally as needed
 
 **Example:** backend-dev-guidelines has 11 resource files covering routing, controllers, services, repositories, testing, etc.
@@ -371,10 +426,11 @@ Some hooks expect specific structures:
 ### Option A: Setup Wizard (Fastest)
 
 ```bash
-npx tsx setup.ts
+npx tsx setup.ts ~/my-project          # interactive
+npx tsx setup.ts ~/my-project --yes    # non-interactive (what Claude Code uses)
 ```
 
-The wizard handles everything: tech detection, mode selection, provider config, dependency install.
+The wizard handles everything: tech detection, mode selection, provider config, dependency install, and a self-verification pass at the end.
 
 ### Option B: Manual Setup
 
@@ -434,6 +490,14 @@ See [`.env.example`](.env.example) for full documentation.
 ## Getting Help
 
 ### Troubleshooting / Disabling
+
+**Something not working?** Run the health check first - it tells you exactly what to fix:
+
+```bash
+bash .claude/scripts/verify-setup.sh
+```
+
+Or ask Claude to run `/verify-setup` and it fixes the failures itself.
 
 **Need everything off fast?** Remove the `"hooks"` block from `.claude/settings.json` - all hooks stop running immediately.
 

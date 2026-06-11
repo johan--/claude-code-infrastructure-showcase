@@ -2,6 +2,23 @@
 
 **FOR CLAUDE CODE:** When a user asks you to integrate components from this showcase repository into their project, follow these instructions carefully.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Setup Wizard (Fastest Path)](#setup-wizard-fastest-path)
+- [Choosing Classic vs AI-Enhanced Mode](#choosing-classic-vs-ai-enhanced-mode)
+- [AI Provider Setup](#ai-provider-setup)
+- [Conservativeness Tuning](#conservativeness-tuning)
+- [PreToolUse Guard](#pretooluse-guard)
+- [Tech Stack Compatibility Check](#tech-stack-compatibility-check)
+- [General Integration Pattern](#general-integration-pattern)
+- [Integrating Skills](#integrating-skills)
+- [Adapting Skills for Different Tech Stacks](#adapting-skills-for-different-tech-stacks)
+- [Verification Checklist](#verification-checklist)
+- [Common Mistakes to Avoid](#common-mistakes-to-avoid)
+- [Example Integration Conversations](#example-integration-conversations)
+- [Quick Reference Tables](#quick-reference-tables)
+
 ---
 
 ## Overview
@@ -22,7 +39,7 @@ This repository is a **reference library** of Claude Code infrastructure compone
 For users who want the quickest setup:
 
 ```bash
-npx tsx setup.ts
+npx tsx setup.ts ~/their-project
 ```
 
 The wizard:
@@ -32,6 +49,17 @@ The wizard:
 4. Configures conservativeness level
 5. Updates `skill-rules.json` with v2.0 settings
 6. Installs dependencies
+7. Runs the health check (`.claude/scripts/verify-setup.sh`) to verify its own work
+
+**IMPORTANT - when YOU (Claude) run the wizard:** the interactive prompts do not work over piped stdin, and the wizard exits with an error if you try. ALWAYS pass `--yes` with an explicit absolute target path:
+
+```bash
+npx tsx setup.ts /absolute/path/to/their-project --yes
+# Optional flags: --mode disabled|fallback|ai-only   --provider auto|gemini|openai|anthropic|ollama
+#                 --conservativeness strict|balanced|aggressive   --editor
+```
+
+Defaults are safe (`--mode disabled` = regex-only, no API key needed). After it finishes, report the verification results to the user and fix any [FAIL] items.
 
 **After the wizard:** Users can fine-tune by editing `.claude/skills/skill-rules.json`.
 
@@ -733,7 +761,15 @@ Instead, **extract and merge** the sections they need:
 
 ## Verification Checklist
 
-After integration, **verify these items:**
+**Fastest path - run the health check script** (8 checks, exact fix command per failure, including an end-to-end test of the activation hook):
+
+```bash
+bash $CLAUDE_PROJECT_DIR/.claude/scripts/verify-setup.sh
+```
+
+Exit 0 = ready (warnings are fine - they cover optional features). Fix any [FAIL] and re-run.
+
+**Manual fallback** if the script isn't present (older install), verify these items:
 
 ```bash
 # 1. Hooks are executable
@@ -761,9 +797,9 @@ cat $CLAUDE_PROJECT_DIR/.claude/settings.json | jq .
 
 ## Common Mistakes to Avoid
 
-### ❌ DON'T: Copy settings.json as-is
-**Why:** The Stop hooks reference non-existent services
-**DO:** Extract only UserPromptSubmit and PostToolUse sections
+### ❌ DON'T: Register the heavy Stop hooks without customizing them
+**Why:** The shipped `settings.json` works as-is - it registers only the safe hooks (skill activation, guard, trackers, session-doc-updater). The build-check Stop hooks (tsc-check, trigger-build-resolver, stop-build-check-enhanced) are NOT registered by default because they expect specific service directories.
+**DO:** Copy `settings.json` as shipped. Only add the build-check Stop hooks after customizing their service lists for the user's project.
 
 ### ❌ DON'T: Keep example service names
 **Why:** User doesn't have blog-api, auth-service, etc.

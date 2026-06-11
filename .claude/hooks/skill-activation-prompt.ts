@@ -805,6 +805,18 @@ async function main() {
 
                     return { result: { mandatory: validMandatory, recommended: validRecommended }, source: provider.name };
                 }
+                if (activationMode === 'fallback') {
+                    // No provider available - fallback mode regresses to regex matching
+                    const fallbackMatches = fallbackKeywordMatch(prompt, rules);
+                    const fallbackResult = fallbackToClassificationResult(fallbackMatches);
+                    return {
+                        result: {
+                            mandatory: fallbackResult.mandatory.filter(s => rules.skills[s]),
+                            recommended: fallbackResult.recommended.filter(s => rules.skills[s]),
+                        },
+                        source: 'regex-no-provider',
+                    };
+                }
                 return { result: EMPTY_CLASSIFICATION, source: 'none' };
             })();
 
