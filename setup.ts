@@ -528,7 +528,7 @@ async function main() {
         installEditor = opts.editor;
     } else {
         const editorIdx = await promptChoice(
-            'Install NeoVim editor config for Claude Code prompt editing? (Ctrl+E)',
+            'Install NeoVim editor config for Claude Code prompt editing? (Ctrl+G)',
             [
                 'Skip - Keep current editor setup',
                 'Install - NeoVim config optimized for prompt editing',

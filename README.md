@@ -130,7 +130,7 @@ To pick up new files from a newer version of this repo:
 
 ### Editor Setup (Optional)
 
-The repo includes a NeoVim configuration optimized for Claude Code's prompt editing mode (`Ctrl+E`):
+The repo includes a NeoVim configuration optimized for Claude Code's prompt editing mode (`Ctrl+G`):
 
 - **Relative line numbers** for easy jumping (`5j` = down 5 lines)
 - **Word-boundary wrapping** for long prompts

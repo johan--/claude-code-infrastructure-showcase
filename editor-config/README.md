@@ -1,6 +1,6 @@
 # NeoVim / Vim Config for Claude Code
 
-Configuration optimized for Claude Code's prompt editing mode (`Ctrl+E` or `/vim`).
+Configuration optimized for Claude Code's prompt editing mode (`Ctrl+G` or `/vim`).
 
 ## Files
 
@@ -62,7 +62,7 @@ Simpler fallback: 4-space tabs, syntax highlighting, search settings, cursor lin
 ## How It Works with Claude Code
 
 Claude Code uses the `$EDITOR` environment variable to determine which editor opens when you:
-- Press `Ctrl+E` to edit your prompt in a full editor
+- Press `Ctrl+G` to edit your prompt in a full editor
 - Use `/vim` mode for multi-line editing
 
 Setting `EDITOR=nvim` makes Claude Code open NeoVim with your `init.lua` config. The `Space+w` binding makes the workflow: edit prompt → `Space+w` → prompt submitted.
